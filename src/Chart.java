@@ -8,46 +8,25 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import javax.swing.*;
 import java.awt.*;
 
-public class Chart extends JFrame {
-    JPanel p = new JPanel();
-    JScrollPane jp = new JScrollPane(p);
+public class Chart extends JPanel {
     public Chart() {
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setTitle("Pie chart");
-        p.setLayout(new GridLayout());
-        add(jp);
-        /*
-        add(createDataset(),"Testing");
-        reset();
-        add(createDataset(),"Testing");
-         */
-        setVisible(true);
+        this.setLayout(new GridLayout());
     }
     public void reset() {
-        p.removeAll();
+        this.removeAll();
     }
     public void addData(CategoryDataset dataset ,String name,boolean vertical) {
         JFreeChart chart = createChart(dataset,name,vertical);
         ChartPanel chartPanel = new ChartPanel(chart);
         chartPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         chartPanel.setBackground(Color.white);
-        p.add(chartPanel);
-        pack();
+        if (vertical) {
+            chartPanel.setPreferredSize(new Dimension(dataset.getColumnCount()*50,600));
+        } else {
+            chartPanel.setPreferredSize(new Dimension(600,dataset.getColumnCount()*50));
+        }
 
-    }
-
-    private CategoryDataset createDataset() {
-
-        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
-        dataset.setValue(46, "Gold medals", "USA");
-        dataset.setValue(38, "Gold medals", "China");
-        dataset.setValue(38, "medals", "China");
-        dataset.setValue(29, "Gold medals", "UK");
-        dataset.setValue(22, "Gold medals", "Russia");
-        dataset.setValue(13, "Gold medals", "South Korea");
-        dataset.setValue(11, "Gold medals", "Germany");
-
-        return dataset;
+        this.add(chartPanel);
     }
 
     private JFreeChart createChart(CategoryDataset dataset,String name,boolean vertical) {
@@ -105,7 +84,6 @@ class PieChart extends JFrame {
         chartPanel.setBackground(Color.white);
         p.add(chartPanel);
         pack();
-
     }
 
     private CategoryDataset createDataset() {

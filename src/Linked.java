@@ -18,66 +18,42 @@ public class Linked {
         i1.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                operation = 0;
-                name = "SUM(" + data + ")";
-                if (update != null) {
-                    update.actionPerformed(null);
-                }
+                setOperation(0);
             }
         });
         JMenuItem i2 = new JMenuItem("Average");
         i2.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                operation = 1;
-                name = "AVG(" + data + ")";
-                if (update != null) {
-                    update.actionPerformed(null);
-                }
+                setOperation(1);
             }
         });
         JMenuItem i3 = new JMenuItem("Medium");
         i3.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                operation = 2;
-                name = "MED(" + data + ")";
-                if (update != null) {
-                    update.actionPerformed(null);
-                }
+                setOperation(2);
             }
         });
         JMenuItem i4 = new JMenuItem("Max");
         i4.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                operation = 3;
-                name = "MAX(" + data + ")";
-                if (update != null) {
-                    update.actionPerformed(null);
-                }
+                setOperation(3);
             }
         });
         JMenuItem i5 = new JMenuItem("Min");
         i5.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                operation = 4;
-                name = "MIN(" + data + ")";
-                if (update != null) {
-                    update.actionPerformed(null);
-                }
+                setOperation(4);
             }
         });
         JMenuItem i6 = new JMenuItem("Count");
         i6.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                operation = 5;
-                name = "COUNT(" + data + ")";
-                if (update != null) {
-                    update.actionPerformed(null);
-                }
+                setOperation(5);
             }
         });
         pop.add(i1);
@@ -86,6 +62,33 @@ public class Linked {
         pop.add(i4);
         pop.add(i5);
         pop.add(i6);
+    }
+    public void setOperation(int operation) {
+        this.operation = operation;
+
+        switch (operation) {
+            case 0:
+                name = "SUM(" + data + ")";
+                break;
+            case 1:
+                name = "AVG(" + data + ")";
+                break;
+            case 2:
+                name = "MED(" + data + ")";
+                break;
+            case 3:
+                name = "MAX(" + data + ")";
+                break;
+            case 4:
+                name = "MIN(" + data + ")";
+                break;
+            case 5:
+                name = "COUNT(" + data + ")";
+                break;
+        }
+        if (update != null) {
+            update.actionPerformed(null);
+        }
     }
     public void setActionListener(ActionListener e) {
         this.update = e;

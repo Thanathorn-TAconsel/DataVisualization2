@@ -5,14 +5,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Scanner;
 
-public class csvData {
+public class CsvData {
     String[][] data; //[row][col]
     String[] header;
     HashMap<String,Integer> headerIndex = new HashMap<>();
     boolean[] isMeasure;
     String fileName;
 
-    csvData(String filename) throws Exception {
+    CsvData(String filename) throws Exception {
         this.fileName = filename;
         loadData(filename);
     }
@@ -62,7 +62,7 @@ public class csvData {
         return false;
     }
 
-    public static boolean checkHeader(csvData file1,csvData file2){
+    public static boolean checkHeader(CsvData file1,CsvData file2){
         if (file1.header.length == file2.header.length) {
             for (int i = 0; i < file1.header.length; i++) {
                 if (!file1.header[i].equals(file2.header[i])) {
@@ -73,13 +73,13 @@ public class csvData {
         return true;
     }
 
-    public static boolean checkHeaderV2(ArrayList<csvData> csvDataList) {
-        for (int i = 0; i < csvDataList.size(); i++) {
+    public static boolean checkHeaderV2(ArrayList<CsvData> CsvDataList) {
+        for (int i = 0; i < CsvDataList.size(); i++) {
             try {
-                System.out.print("check header for " + csvDataList.get(i).fileName + " and " + csvDataList.get(i+1).fileName);
-                if (csvDataList.get(i).header.length == csvDataList.get(i+1).header.length) {   //check for the amount of header
-                    for (int j = 0; j < csvDataList.get(i).header.length; j++) {
-                        if (!csvDataList.get(i).header[j].equals(csvDataList.get(i+1).header[j])){ //check for each header if they're the same or not
+                System.out.print("check header for " + CsvDataList.get(i).fileName + " and " + CsvDataList.get(i+1).fileName);
+                if (CsvDataList.get(i).header.length == CsvDataList.get(i+1).header.length) {   //check for the amount of header
+                    for (int j = 0; j < CsvDataList.get(i).header.length; j++) {
+                        if (!CsvDataList.get(i).header[j].equals(CsvDataList.get(i+1).header[j])){ //check for each header if they're the same or not
                             System.out.println("not valid");
                             return false;
                         }
@@ -100,22 +100,22 @@ public class csvData {
     }
 
     public static void unionFileV2(String[] fileList) throws Exception {
-        ArrayList<csvData> csvDataList = new ArrayList<>(); //Create arrayList for multiple csvData
+        ArrayList<CsvData> CsvDataList = new ArrayList<>(); //Create arrayList for multiple CsvData
         for (String element : fileList) {
-            csvDataList.add(new csvData(element));
+            CsvDataList.add(new CsvData(element));
         }
 
-        if (checkHeaderV2(csvDataList)){ //Check if the file is valid by the header
+        if (checkHeaderV2(CsvDataList)){ //Check if the file is valid by the header
             System.out.println("All files are validated!");
             try (PrintWriter writer = new PrintWriter("unionV2.csv")){
                 StringBuilder sb = new StringBuilder();
                 ArrayList<ArrayList> newData = new ArrayList<>();
 
                 //write header to our files
-                for (int i = 0;i < csvDataList.get(0).header.length;i++) {
-                    //System.out.println(csvDataList.get(0).header[i]);
-                    sb.append(csvDataList.get(0).header[i]);
-                    if (i != csvDataList.get(0).header.length - 1) {
+                for (int i = 0;i < CsvDataList.get(0).header.length;i++) {
+                    //System.out.println(CsvDataList.get(0).header[i]);
+                    sb.append(CsvDataList.get(0).header[i]);
+                    if (i != CsvDataList.get(0).header.length - 1) {
                         sb.append(',');
                     }
                     else break;
@@ -123,7 +123,7 @@ public class csvData {
                 sb.append('\n');
 
                 //pack data in to line
-                for (csvData file : csvDataList) {
+                for (CsvData file : CsvDataList) {
                     //System.out.println("file : " + file.fileName);
                     for (int i = 0; i < file.data.length; i++) {
                         ArrayList<String> lineTemp = new ArrayList<>();
@@ -142,9 +142,9 @@ public class csvData {
                 }
 
                 for (int i = 0; i < newData.size(); i++) {
-                    for (int j = 0; j < csvDataList.get(0).header.length; j++) {
+                    for (int j = 0; j < CsvDataList.get(0).header.length; j++) {
                         sb.append(newData.get(i).get(j));
-                        if (j != csvDataList.get(0).header.length - 1) {
+                        if (j != CsvDataList.get(0).header.length - 1) {
                             sb.append(',');
                         }
                         else break;
@@ -162,7 +162,7 @@ public class csvData {
         }
     }
 
-    public static void unionFile(csvData file1,csvData file2,String filename) {
+    public static void unionFile(CsvData file1,CsvData file2,String filename) {
         try (PrintWriter writer = new PrintWriter(filename)) {
             StringBuilder sb = new StringBuilder();
             ArrayList<ArrayList> data1 = new ArrayList<>();

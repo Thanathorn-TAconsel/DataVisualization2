@@ -39,17 +39,20 @@ public class TableFileReader {
     }
 
     public HashMap buildMap(String[] dimension,String[] measure,DimensionFilter filter,MeasureFilter measureFilter,Integer[] operation,boolean calc) {
-        int[] dimensionIndex = getHeader(dimension);
-        int[] measureIndex = getHeader(measure);
-        HashMap output = new HashMap();
-        for (int i = 0;i < data.length;i++) {
-            insert(output,data[i],dimensionIndex,measureIndex,0,filter,measureFilter,operation,calc);
+        if (data != null) {
+            int[] dimensionIndex = getHeader(dimension);
+            int[] measureIndex = getHeader(measure);
+            HashMap output = new HashMap();
+            for (int i = 0;i < data.length;i++) {
+                insert(output,data[i],dimensionIndex,measureIndex,0,filter,measureFilter,operation,calc);
+            }
+            if (calc) {
+                calc(output,0,operation);
+            }
+            System.out.println("Done");
+            return output;
         }
-        if (calc) {
-            calc(output,0,operation);
-        }
-        System.out.println("Done");
-        return output;
+        return null;
     }
     //0   1   2   3   4   5
     //SUM AVG MED MAX MIN COUNT

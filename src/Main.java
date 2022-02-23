@@ -1,11 +1,17 @@
 import org.jfree.data.category.DefaultCategoryDataset;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 import javax.swing.*;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.dnd.DnDConstants;
@@ -15,18 +21,18 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Vector;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.*;
 import java.util.List;
 
 import static javax.swing.SpringLayout.*;
 
 
 public class Main {
+    JList measureList;
     JFrame frame = new JFrame();
     Container container;
     SpringLayout layout = new SpringLayout();
@@ -34,93 +40,365 @@ public class Main {
     Spring pw,ph;
     DefaultListModel<Linked> row = new DefaultListModel<>();
     DefaultListModel<Linked> column = new DefaultListModel<>();
-    DefaultListModel filter = new DefaultListModel<>();
+    DefaultListModel<Linked> filter = new DefaultListModel<>();
     DefaultListModel<String> filelist = new DefaultListModel<>();
     JTable table = new JTable();
     TableFileReader tableReader = new TableFileReader();
     DimensionFilter dimensionFilter = new DimensionFilter();
     MeasureFilter measureFilter = new MeasureFilter();
     Chart chart = new Chart();
+    JTabbedPane tab = new JTabbedPane();
+    JButton saveBtn = new JButton("Save");
+    JButton loadBtn = new JButton("Load");
+    JList dimensionList;
+    MessageDigest md5Digest = MessageDigest.getInstance("MD5");
+    public void saveFile(String filename) {
+        JSONObject root = new JSONObject(),fileNameList = new JSONObject(),rowList = new JSONObject(),columnList = new JSONObject(),filterList = new JSONObject();
+        root.put("File",fileNameList);
+        root.put("Row",rowList);
+        root.put("Column",columnList);
+        root.put("Filter",filterList);
+        for (int i = 0;i < filelist.size();i++) {
+            try {
+                File file = new File(filelist.get(i));
+                String checksum = getFileChecksum(md5Digest, file);
+                fileNameList.put(filelist.get(i),checksum);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return;
+            }
+        }
+        for (int i = 0;i < row.size();i++) {
+            try {
+                JSONObject linkedObject = new JSONObject();
+                Linked linked = row.get(i);
+                linkedObject.put("data",linked.data);
+                linkedObject.put("name",linked.name);
+                linkedObject.put("operation",linked.operation);
+                rowList.put(linked.name,linkedObject);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return;
+            }
+        }
+        for (int i = 0;i < filter.size();i++) {
+            try {
+                JSONObject linkedObject = new JSONObject();
+                Linked linked = filter.get(i);
+                linkedObject.put("data",linked.data);
+                linkedObject.put("name",linked.name);
+                linkedObject.put("operation",linked.operation);
+                if (linked.range != null) {
+                    linkedObject.put("range_min",linked.range.min);
+                    linkedObject.put("range_max",linked.range.max);
+                } else {
+                    linkedObject.put("range_min",Double.MAX_VALUE);
+                    linkedObject.put("range_max",Double.MIN_VALUE);
+                }
+                if (linked.exception != null) {
+                    JSONArray exc = new JSONArray();
+                    for (int x = 0; x < linked.exception.length;x++) {
+                        exc.add(linked.exception[x]);
+                    }
+                    linkedObject.put("Exception",exc);
+                } else {
+                    linkedObject.put("Exception",null);
+                }
+                filterList.put(linked.name,linkedObject);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return;
+            }
+        }
+        for (int i = 0;i < column.size();i++) {
+            try {
+                JSONObject linkedObject = new JSONObject();
+                Linked linked = column.get(i);
+                linkedObject.put("data",linked.data);
+                linkedObject.put("name",linked.name);
+                linkedObject.put("operation",linked.operation);
+                columnList.put(linked.name,linkedObject);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return;
+            }
+        }
+        try {
+            FileWriter writer = new FileWriter(filename);
+            root.writeJSONString(writer);
+            System.out.println(writer.toString());
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+    public void loadFile(String filename) {
+        System.out.println("loading File: " + filename);
+        try {
+            JSONParser parser = new JSONParser();
+            String content = new Scanner(new File(filename)).useDelimiter("\\Z").next();
+            JSONObject object = (JSONObject) parser.parse(content);
+            JSONObject columnList = (JSONObject) object.get("Column"),rowList = (JSONObject) object.get("Row"),filterList = (JSONObject) object.get("Filter"),fileNameList = (JSONObject) object.get("File");
+            row.clear();
+            column.clear();
+            filter.clear();
+            filelist.clear();
+            for (Object obj:fileNameList.keySet()) {
+                String md5 = (String) fileNameList.get(obj);
+                String Testfile = (String)obj;
+                try {
+                    File file = new File(Testfile);
+                    String checksum = getFileChecksum(md5Digest, file);
+                    if (checksum.equals(md5)) {
+                        System.out.println(Testfile + " : MD5 Checksum OK");
+                        filelist.add(0,Testfile);
+                    } else {
+                        System.out.println(Testfile + " : MD5 Checksum mismatch");
+                    }
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return;
+                }
+            }
+            loadFile();
+            for (Object obj:columnList.keySet()) {
+                JSONObject get = (JSONObject) columnList.get(obj);
+                Linked linked = new Linked((String) get.get("name"), (String) get.get("data"));
+                System.out.println(linked.toString() + " : " + linked.getData());
+                int operation = Integer.parseInt(get.get("operation").toString());
+                if (operation != 0) {
+                    linked.setOperation(operation);
+                }
+
+                column.add(column.size(),linked);
+            }
+            for (Object obj:rowList.keySet()) {
+                JSONObject get = (JSONObject) rowList.get(obj);
+                Linked linked = new Linked((String) get.get("name"), (String) get.get("data"));
+                System.out.println(linked.toString() + " : " + linked.getData());
+                int operation = Integer.parseInt(get.get("operation").toString());
+                if (operation != 0) {
+                    linked.setOperation(operation);
+                }
+                row.add(row.size(),linked);
+            }
+            for (Object obj:filterList.keySet()) {
+                JSONObject get = (JSONObject) filterList.get(obj);
+                Linked linked = new Linked((String) get.get("name"), (String) get.get("data"));
+                System.out.println("FilterADDED: " + linked.toString() + " : " + linked.getData());
+                int operation = Integer.parseInt(get.get("operation").toString());
+                Double rangeMin = Double.parseDouble(get.get("range_min").toString());
+                Double rangeMax = Double.parseDouble(get.get("range_max").toString());
+                linked.range = new Range(rangeMin,rangeMax);
+                if (operation != 0) {
+                    linked.setOperation(operation);
+                }
+                JSONArray exc = (JSONArray) get.get("Exception");
+                if (exc != null) {
+                    String[] excep = new String[exc.size()];
+                    for (int i = 0;i < excep.length;i++) {
+                        excep[i] = exc.get(i).toString();
+                    }
+                    linked.exception = excep;
+                }
+                filter.add(filter.size(),linked);
+            }
+            System.out.println(columnList.keySet());
+            System.out.println("Putting File");
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+
+    private static String getFileChecksum(MessageDigest digest, File file) throws IOException
+    {
+        //Get file input stream for reading the file content
+        FileInputStream fis = new FileInputStream(file);
+
+        //Create byte array to read data in chunks
+        byte[] byteArray = new byte[1024];
+        int bytesCount = 0;
+
+        //Read file data and update in message digest
+        while ((bytesCount = fis.read(byteArray)) != -1) {
+            digest.update(byteArray, 0, bytesCount);
+        };
+
+        //close the stream; We don't need it now.
+        fis.close();
+
+        //Get the hash's bytes
+        byte[] bytes = digest.digest();
+
+        //This bytes[] has bytes in decimal format;
+        //Convert it to hexadecimal format
+        StringBuilder sb = new StringBuilder();
+        for(int i=0; i< bytes.length ;i++)
+        {
+            sb.append(Integer.toString((bytes[i] & 0xff) + 0x100, 16).substring(1));
+        }
+
+        //return complete hash
+        return sb.toString();
+    }
+
     Main() throws Exception {
-        frame.setSize(1200,600);
+        frame.setSize(1500,800);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         container = frame.getContentPane();
         container.setLayout(layout);
         pw = layout.getConstraint(WIDTH,container);
         ph = layout.getConstraint(HEIGHT,container);
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new FileNameExtensionFilter("JSON", "json"));
+        fileChooser.setDialogTitle("save as ...");
+        saveBtn.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int userSelection = fileChooser.showSaveDialog(frame);
+                if (userSelection == JFileChooser.APPROVE_OPTION) {
+                    File fileToSave = fileChooser.getSelectedFile();
+                    saveFile(fileToSave.getAbsolutePath() + ".json");
+                    System.out.println("Save as file: " + fileToSave.getAbsolutePath() + ".json");
+                }
+            }
+        });
+        loadBtn.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int userSelection = fileChooser.showOpenDialog(frame);
+                if (userSelection == JFileChooser.APPROVE_OPTION) {
+                    File fileToOpen = fileChooser.getSelectedFile();
+                    loadFile(fileToOpen.getAbsolutePath());
+                    System.out.println("Open File: " + fileToOpen.getAbsolutePath());
+                }
+            }
+        });
+        JLabel fileoperation = new JLabel("File Data");
+        container.add(fileoperation);
+        layout.putConstraint(WEST,fileoperation,10,WEST,container);
+        layout.putConstraint(NORTH,fileoperation,10,NORTH,container);
+        container.add(saveBtn);
+        layout.putConstraint(WEST,saveBtn,10,WEST,container);
+        layout.putConstraint(NORTH,saveBtn,10,SOUTH,fileoperation);
+        container.add(loadBtn);
+        layout.putConstraint(WEST,loadBtn,10,EAST,saveBtn);
+        layout.putConstraint(NORTH,loadBtn,0,NORTH,saveBtn);
+
+        JLabel label5 = new JLabel("File");
+        container.add(label5);
+        layout.putConstraint(WEST,label5,10,WEST,container);
+        layout.putConstraint(NORTH,label5,10,SOUTH,saveBtn);
+
+        JList fileJlist = new JList();
+        fileJlist.setModel(filelist);
+        fileJlist.setDropMode(DropMode.ON_OR_INSERT);
+        fileJlist.setDragEnabled(true);
+        JScrollPane fileJlistPane = new JScrollPane(fileJlist);
+        container.add(fileJlistPane);
+        layout.putConstraint(NORTH,fileJlistPane,10,SOUTH,label5);
+        layout.putConstraint(WEST,fileJlistPane,10,WEST,container);
+        layout.putConstraint(EAST,fileJlistPane,200,WEST,fileJlistPane);
+        //layout.putConstraint(SOUTH,fileJlistPane,-50,SOUTH,container);
+        layout.getConstraints(fileJlistPane).setHeight(Spring.scale(ph,0.2f));
 
         JLabel label = new JLabel("Dimension");
         container.add(label);
         layout.putConstraint(WEST,label,10,WEST,container);
-        layout.putConstraint(NORTH,label,10,NORTH,container);
+        layout.putConstraint(NORTH,label,10,SOUTH,fileJlistPane);
 
-
-
-        JList list = new JList();
-        JScrollPane dimensionPane = new JScrollPane(list);
-        list.setListData(tableReader.getDimensionList());
-        list.setDragEnabled(true);
-        list.setTransferHandler(new ExportTransferHandler(list));
+        dimensionList = new JList();
+        JScrollPane dimensionPane = new JScrollPane(dimensionList);
+        dimensionList.setListData(tableReader.getDimensionList());
+        dimensionList.setDragEnabled(true);
+        dimensionList.setTransferHandler(new ExportTransferHandler(dimensionList));
         container.add(dimensionPane);
         layout.putConstraint(WEST,dimensionPane,0,WEST,label);
         layout.putConstraint(NORTH,dimensionPane,10,SOUTH,label);
         layout.putConstraint(EAST,dimensionPane,200,WEST,dimensionPane);
-        layout.getConstraints(dimensionPane).setHeight(Spring.scale(ph,0.4f));
+        layout.getConstraints(dimensionPane).setHeight(Spring.scale(ph,0.3f));
 
         JLabel label1 = new JLabel("Measure");
         container.add(label1);
         layout.putConstraint(WEST,label1,10,WEST,container);
         layout.putConstraint(NORTH,label1,10,SOUTH,dimensionPane);
 
-        JList list1 = new JList();
-        JScrollPane measurePane = new JScrollPane(list1);
-        list1.setListData(tableReader.getMeasureList());
-        list1.setDragEnabled(true);
-        list1.setTransferHandler(new ExportTransferHandler(list1));
+        measureList = new JList();
+        JScrollPane measurePane = new JScrollPane(measureList);
+        measureList.setListData(tableReader.getMeasureList());
+        measureList.setDragEnabled(true);
+        measureList.setTransferHandler(new ExportTransferHandler(measureList));
         container.add(measurePane);
         layout.putConstraint(WEST,measurePane,0,WEST,label1);
         layout.putConstraint(NORTH,measurePane,10,SOUTH,label1);
         layout.putConstraint(EAST,measurePane,0,EAST,dimensionPane);
         layout.putConstraint(SOUTH,measurePane,-10,SOUTH,container);
 
-        JLabel label2 = new JLabel("Row");
-        container.add(label2);
-        layout.putConstraint(WEST,label2,10,EAST,dimensionPane);
-        layout.putConstraint(NORTH,label2,0,NORTH,label);
 
-        JList rowList = new JList();
-        JScrollPane rowPane = new JScrollPane(rowList);
-        rowList.setModel(row);
-        rowList.setDropMode(DropMode.ON_OR_INSERT);
-        rowList.setDragEnabled(true);
-        rowList.setTransferHandler(new ImportTransferHandler(rowList,row,true));
-        container.add(rowPane);
-        layout.putConstraint(WEST,rowPane,10,EAST,dimensionPane);
-        layout.putConstraint(EAST,rowPane,200,WEST,rowPane);
-        layout.putConstraint(NORTH,rowPane,0,NORTH,dimensionPane);
-        layout.putConstraint(SOUTH,rowPane,0,SOUTH,dimensionPane);
-
-        JLabel label3 = new JLabel("Column");
-        container.add(label3);
-        layout.putConstraint(WEST,label3,10,EAST,measurePane);
-        layout.putConstraint(NORTH,label3,0,NORTH,label1);
 
         JList columnList = new JList();
+        columnList.setFixedCellHeight(27);
+        columnList.setFixedCellWidth(100);
+        columnList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        columnList.setVisibleRowCount(1);
         JScrollPane columnPane = new JScrollPane(columnList);
         columnList.setModel(column);
         columnList.setDropMode(DropMode.ON_OR_INSERT);
         columnList.setDragEnabled(true);
         columnList.setTransferHandler(new ImportTransferHandler(columnList,column,true));
         container.add(columnPane);
-        layout.putConstraint(WEST,columnPane,10,EAST,measurePane);
-        layout.putConstraint(EAST,columnPane,200,WEST,columnPane);
-        layout.putConstraint(NORTH,columnPane,0,NORTH,measurePane);
-        layout.putConstraint(SOUTH,columnPane,0,SOUTH,measurePane);
+        layout.putConstraint(WEST,columnPane,100,EAST,dimensionPane);
+        layout.putConstraint(EAST,columnPane,-10,EAST,container);
+        layout.putConstraint(NORTH,columnPane,10,NORTH,container);
+        layout.putConstraint(SOUTH,columnPane,30,NORTH,columnPane);
+
+        JLabel label3 = new JLabel("Column");
+        label3.setHorizontalAlignment(JLabel.RIGHT);
+        container.add(label3);
+        layout.putConstraint(EAST,label3,-10,WEST,columnPane);
+        layout.putConstraint(NORTH,label3,0,NORTH,columnPane);
+        layout.putConstraint(SOUTH,label3,0,SOUTH,columnPane);
+        layout.putConstraint(WEST,label3,-50,EAST,label3);
+
+
+
+        JList rowList = new JList();
+        rowList.setFixedCellHeight(27);
+        rowList.setFixedCellWidth(100);
+        rowList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        rowList.setVisibleRowCount(1);
+        JScrollPane rowPane = new JScrollPane(rowList);
+        rowList.setModel(row);
+        rowList.setDropMode(DropMode.ON_OR_INSERT);
+        rowList.setDragEnabled(true);
+        rowList.setTransferHandler(new ImportTransferHandler(rowList,row,true));
+        container.add(rowPane);
+        layout.putConstraint(WEST,rowPane,0,WEST,columnPane);
+        layout.putConstraint(NORTH,rowPane,10,SOUTH,columnPane);
+        layout.putConstraint(EAST,rowPane,0,EAST,columnPane);
+        layout.putConstraint(SOUTH,rowPane,30,NORTH,rowPane);
+
+        JLabel label2 = new JLabel("Row");
+        label2.setHorizontalAlignment(JLabel.RIGHT);
+        container.add(label2);
+        layout.putConstraint(EAST,label2,-10,WEST,rowPane);
+        layout.putConstraint(NORTH,label2,0,NORTH,rowPane);
+        layout.putConstraint(SOUTH,label2,0,SOUTH,rowPane);
+        layout.putConstraint(WEST,label2,-50,EAST,label2);
 
         JLabel label4 = new JLabel("Filter");
         container.add(label4);
-        layout.putConstraint(WEST,label4,10,EAST,rowPane);
-        layout.putConstraint(NORTH,label4,0,NORTH,label2);
+        layout.putConstraint(WEST,label4,10,EAST,dimensionPane);
+        layout.putConstraint(NORTH,label4,10,SOUTH,rowPane);
 
         JList filterList = new JList();
         filterList.setModel(filter);
@@ -131,24 +409,11 @@ public class Main {
         container.add(filterPane);
         layout.putConstraint(WEST,filterPane,0,WEST,label4);
         layout.putConstraint(EAST,filterPane,200,WEST,filterPane);
-        layout.putConstraint(SOUTH,filterPane,0,SOUTH,rowPane);
-        layout.putConstraint(NORTH,filterPane,0,NORTH,rowPane);
+        layout.putConstraint(SOUTH,filterPane,-10,SOUTH,container);
+        layout.putConstraint(NORTH,filterPane,10,SOUTH,label4);
 
-        JLabel label5 = new JLabel("File");
-        container.add(label5);
-        layout.putConstraint(WEST,label5,0,WEST,filterPane);
-        layout.putConstraint(NORTH,label5,10,SOUTH,filterPane);
 
-        JList fileJlist = new JList();
-        fileJlist.setModel(filelist);
-        fileJlist.setDropMode(DropMode.ON_OR_INSERT);
-        fileJlist.setDragEnabled(true);
-        JScrollPane fileJlistPane = new JScrollPane(fileJlist);
-        container.add(fileJlistPane);
-        layout.putConstraint(WEST,fileJlistPane,0,WEST,label5);
-        layout.putConstraint(EAST,fileJlistPane,200,WEST,fileJlistPane);
-        layout.putConstraint(SOUTH,fileJlistPane,-50,SOUTH,container);
-        layout.putConstraint(NORTH,fileJlistPane,10,SOUTH,label5);
+
         fileJlist.setDropTarget(new DropTarget() {
             public synchronized void drop(DropTargetDropEvent evt) {
                 try {
@@ -158,44 +423,28 @@ public class Main {
                     for (File file : droppedFiles) {
                         filelist.add(0,file.getAbsoluteFile().toString());
                     }
-                    if (filelist.size() > 1) {
-                        CsvData.unionFile(new CsvData(filelist.get(0)),new CsvData(filelist.get(1)),"temp");
-                        for (int i = 2;i < filelist.size();i++) {
-                            CsvData.unionFile(new CsvData("temp"),new CsvData(filelist.get(i)),"temp");
-                        }
-                        row.clear();
-                        column.clear();
-                        filter.clear();
-                        tableReader.loadData("temp");
-                        list.setListData(tableReader.getDimensionList());
-                        list1.setListData(tableReader.getMeasureList());
-                    }
-                    if (filelist.size() == 1) {
-                        row.clear();
-                        column.clear();
-                        filter.clear();
-                        tableReader.loadData(filelist.get(0));
-                        list.setListData(tableReader.getDimensionList());
-                        list1.setListData(tableReader.getMeasureList());
-                    }
+                    loadFile();
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
             }
         });
 
+
         JScrollPane tablePane = new JScrollPane(table);
-        container.add(tablePane);
-        layout.putConstraint(WEST,tablePane,10,EAST,filterPane);
-        layout.putConstraint(NORTH,tablePane,0,NORTH,filterPane);
-        layout.putConstraint(EAST,tablePane,-10,EAST,container);
-        layout.putConstraint(SOUTH,tablePane,-10,SOUTH,container);
+
         frame.setVisible(true);
         frame.setTransferHandler(new DrainTranfer());
         row.addListDataListener(new DataChangeListener());
         column.addListDataListener(new DataChangeListener());
 
-
+        tab.add("Grid Table",tablePane);
+        tab.add("Bar Chart",new JScrollPane(chart));
+        container.add(tab);
+        layout.putConstraint(WEST,tab,10,EAST,filterPane);
+        layout.putConstraint(NORTH,tab,10,SOUTH,rowPane);
+        layout.putConstraint(EAST,tab,-10,EAST,container);
+        layout.putConstraint(SOUTH,tab,-10,SOUTH,container);
 
         //dimensionFilter.addException(tableReader.getHeader("Category"),"Technology");
         //measureFilter.addException(tableReader.getHeader("Profit"),0,new Range(0,Double.MAX_VALUE));
@@ -292,6 +541,29 @@ public class Main {
         itemChange();
     }
 
+    private void loadFile() throws Exception {
+        if (filelist.size() > 1) {
+            Object[] objects = filelist.toArray();
+            String[] stringArray = Arrays.copyOf(objects, objects.length, String[].class);
+            CsvData.unionFileV2(stringArray);
+            row.clear();
+            column.clear();
+            filter.clear();
+            tableReader.loadData("unionV2.csv");
+
+            dimensionList.setListData(tableReader.getDimensionList());
+            measureList.setListData(tableReader.getMeasureList());
+
+        }
+        if (filelist.size() == 1) {
+            row.clear();
+            column.clear();
+            filter.clear();
+            tableReader.loadData(filelist.get(0));
+            dimensionList.setListData(tableReader.getDimensionList());
+            measureList.setListData(tableReader.getMeasureList());
+        }
+    }
     private void filterSelect(Linked selected) {
         System.out.println(selected.getData());
         if (tableReader.isMeasure[tableReader.getHeader(selected.getData())]) {
@@ -476,6 +748,7 @@ public class Main {
             map = tableReader.buildMap(dimension,measure, dimensionFilter,measureFilter,operation,true);
             utilOperation.displayMap(map,0);
             displayTable(map);
+            //table.setPreferredSize(new Dimension(1000,table.getPreferredSize().height));
         } catch (Exception e) {
             e.printStackTrace();
         }
