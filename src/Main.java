@@ -1,4 +1,5 @@
 import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.data.general.DefaultPieDataset;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -470,6 +471,7 @@ public class Main {
         tab.add("Data Source",dataViewerPane);
         tab.add("Grid Table",tablePane);
         tab.add("Bar Chart",new JScrollPane(chart));
+        /*
         JPanel pieTab = new JPanel();
         pieTab.setLayout(new BorderLayout());
         JPanel subPieTab = new JPanel();
@@ -479,10 +481,9 @@ public class Main {
         subPieTab.add(label7,BorderLayout.WEST);
         subPieTab.add(angleList,BorderLayout.CENTER);
         pieTab.add(subPieTab,BorderLayout.NORTH);
-
         pieTab.add(new JScrollPane(pieChart),BorderLayout.CENTER);
-
-        tab.add("Pie Chart",pieTab);
+        */
+        tab.add("Pie Chart",new JScrollPane(pieChart));
         JPanel lineTab = new JPanel();
         lineTab.setLayout(new BorderLayout());
         JPanel subLineTab = new JPanel();
@@ -890,53 +891,44 @@ public class Main {
 
         }
         chart.reset();
+        pieChart.reset();
         if (mode == 2) {
+
             if (colHeight > 1) {
                 HashMap get = getLast(columnMap);
                 Object[] keylist = get.keySet().toArray();
                 for (Object key:keylist) {
+                    DefaultPieDataset pie = new DefaultPieDataset();
                     DefaultCategoryDataset dat = new DefaultCategoryDataset();
-                    showNumber(rowWidth,colHeight,dat,key.toString(),false);
+                    showNumber(rowWidth,colHeight,dat,pie,key.toString(),false);
                     chart.addData(dat,key.toString(),false);
+                    pieChart.addData(pie,key.toString());
                 }
             } else {
-
+                DefaultPieDataset pie = new DefaultPieDataset();
                 DefaultCategoryDataset dat = new DefaultCategoryDataset();
-                showNumber(rowWidth,colHeight,dat,null,false);
+                showNumber(rowWidth,colHeight,dat,pie,null,false);
                 chart.addData(dat,"BarChart",false);
-
-
+                pieChart.addData(pie,"PieChart");
             }
         } else if (mode == 1) {
             if (rowWidth > 1) {
                 HashMap get = getLast(rowMap);
                 Object[] keylist = get.keySet().toArray();
                 for (Object key:keylist) {
+                    DefaultPieDataset pie = new DefaultPieDataset();
                     DefaultCategoryDataset dat = new DefaultCategoryDataset();
-                    showNumber(rowWidth,colHeight,dat,key.toString(),true);
+                    showNumber(rowWidth,colHeight,dat,pie,key.toString(),true);
                     chart.addData(dat,key.toString(),true);
+                    pieChart.addData(pie,key.toString());
                 }
             } else {
-
+                DefaultPieDataset pie = new DefaultPieDataset();
                 DefaultCategoryDataset dat = new DefaultCategoryDataset();
-                showNumber(rowWidth,colHeight,dat,null,false);
+                showNumber(rowWidth,colHeight,dat,pie,null,false);
                 chart.addData(dat,"BarChart",true);
-
-
+                pieChart.addData(pie,"PieChart");
             }
-            /*
-            DefaultCategoryDataset dat = new DefaultCategoryDataset();
-            showNumber(rowWidth,colHeight,dat,null,false);
-            chart.addData(dat,"BarChart",true);
-
-             */
-        } else {
-            /*
-            DefaultCategoryDataset dat = new DefaultCategoryDataset();
-            showNumber(rowWidth,colHeight,dat,null,false);
-            chart.addData(dat,"BarChart",true);
-
-             */
         }
         DefaultTableModel tab = new DefaultTableModel(data,new String[width]);
         table.setModel(tab);
@@ -960,7 +952,7 @@ public class Main {
         ccc(root,0);
         return s;
     }
-    public void showNumber(int startX,int startY,DefaultCategoryDataset dat,String filter,boolean row) {
+    public void showNumber(int startX,int startY,DefaultCategoryDataset dat,DefaultPieDataset pie,String filter,boolean row) {
         for (int y = startY;y < data.length;y++) {
             for (int x = startX;x < data[y].length;x++) {
 
@@ -974,16 +966,19 @@ public class Main {
                 if (data[y][x] != "") {
                     if (filter == null) {
                         dat.addValue(Double.parseDouble(data[y][x]),sum[sum.length - 1],b(sum,sum.length - 1));
+                        pie.setValue(b(sum,sum.length - 1),Double.parseDouble(data[y][x]));
                     } else {
                         if (row) {
                             if (sA.length -1 >= 0)
                                 if (sA[sA.length -1].equals(filter)) {
                                     dat.addValue(Double.parseDouble(data[y][x]),sum[sum.length - 1],b(sum,sum.length - 1));
+                                    pie.setValue(b(sum,sum.length - 1),Double.parseDouble(data[y][x]));
                                 }
                         } else {
                             if (sB.length -1 >= 0){
                                 if (sB[sB.length - 1].equals(filter)) {
                                     dat.addValue(Double.parseDouble(data[y][x]),sum[sum.length - 1],b(sum,sum.length - 1));
+                                    pie.setValue(b(sum,sum.length - 1),Double.parseDouble(data[y][x]));
                                 }
                             } else{
                                 System.out.println("DEBUG> " + Arrays.toString(sB));
