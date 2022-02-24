@@ -24,15 +24,26 @@ public class utilOperation {
             return b;
         }
     }
-    public static double operate(double a,double b,int count,int mode) {
-        switch (mode) {
-            case 0:
-                a = a + b;
-            break;
-            case 1:
-
+    public static boolean isNumeric(String str) {
+        try {
+            Double.parseDouble(str);
+            return true;
+        } catch(NumberFormatException e){
+            return false;
         }
-        return a;
+    }
+
+    public static boolean findIn(char match,int count,String in) {
+        int c = 0;
+        for (int i =0;i < in.length();i++) {
+            if (in.charAt(i) == match) {
+                c++;
+                if (c == count){
+                    return true;
+                }
+            }
+        }
+        return false;
     }
     public static String buildTab(int count) {
         StringBuilder sb = new StringBuilder();
@@ -91,6 +102,16 @@ public class utilOperation {
         System.arraycopy(old, 0, newArray, 0, old.length);
         return newArray;
     }
+    public static String[] expandStringArray(String[] old,int len) {
+        String[] newArray = new String[len];
+        System.arraycopy(old, 0, newArray, 0, old.length);
+
+        //an alternative to using System.arraycopy would be a for-loop:
+        // for(int i = 0; i < OrigArray.length; i++)
+        //     newArray[i] = OrigArray[i];
+        return newArray;
+    }
+
     public static int[] concat(int [] a,int [] b){
         int[] ss = new int[a.length + b.length];
         int o = 0;

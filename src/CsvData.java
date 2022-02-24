@@ -37,7 +37,7 @@ public class CsvData {
         isMeasure = new boolean[dataArray.length];
         int i = 0;
         for (String datas: dataArray) {
-            isMeasure[i] = TableFileReader.isNumeric(datas);
+            isMeasure[i] = utilOperation.isNumeric(datas);
             //System.out.println(isMeasure[i]);
             i++;
         }

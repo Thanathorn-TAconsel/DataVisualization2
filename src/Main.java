@@ -5,6 +5,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -41,12 +42,17 @@ public class Main {
     DefaultListModel<Linked> row = new DefaultListModel<>();
     DefaultListModel<Linked> column = new DefaultListModel<>();
     DefaultListModel<Linked> filter = new DefaultListModel<>();
+    DefaultListModel<Linked> angle = new DefaultListModel<>();
+    DefaultListModel<Linked> line = new DefaultListModel<>();
     DefaultListModel<String> filelist = new DefaultListModel<>();
     JTable table = new JTable();
+    JTable dataViewer = new JTable();
     TableFileReader tableReader = new TableFileReader();
     DimensionFilter dimensionFilter = new DimensionFilter();
     MeasureFilter measureFilter = new MeasureFilter();
     Chart chart = new Chart();
+    PieChart pieChart = new PieChart();
+    LineChart lineChart = new LineChart();
     JTabbedPane tab = new JTabbedPane();
     JButton saveBtn = new JButton("Save");
     JButton loadBtn = new JButton("Load");
@@ -413,6 +419,28 @@ public class Main {
         layout.putConstraint(NORTH,filterPane,10,SOUTH,label4);
 
 
+        JList angleList = new JList();
+        angleList.setPreferredSize(new Dimension(50,30));
+        angleList.setFixedCellHeight(27);
+        angleList.setFixedCellWidth(100);
+        angleList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        angleList.setVisibleRowCount(1);
+        angleList.setModel(angle);
+        angleList.setDropMode(DropMode.ON_OR_INSERT);
+        angleList.setDragEnabled(true);
+        angleList.setTransferHandler(new ImportTransferHandler(angleList,angle,true));
+
+        JList linelist = new JList();
+        linelist.setPreferredSize(new Dimension(50,30));
+        linelist.setFixedCellHeight(27);
+        linelist.setFixedCellWidth(100);
+        linelist.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        linelist.setVisibleRowCount(1);
+        linelist.setModel(line);
+        linelist.setDropMode(DropMode.ON_OR_INSERT);
+        linelist.setDragEnabled(true);
+        linelist.setTransferHandler(new ImportTransferHandler(linelist,line,true));
+
 
         fileJlist.setDropTarget(new DropTarget() {
             public synchronized void drop(DropTargetDropEvent evt) {
@@ -438,13 +466,51 @@ public class Main {
         row.addListDataListener(new DataChangeListener());
         column.addListDataListener(new DataChangeListener());
 
+        JScrollPane dataViewerPane = new JScrollPane(dataViewer);
+        tab.add("Data Source",dataViewerPane);
         tab.add("Grid Table",tablePane);
         tab.add("Bar Chart",new JScrollPane(chart));
+        JPanel pieTab = new JPanel();
+        pieTab.setLayout(new BorderLayout());
+        JPanel subPieTab = new JPanel();
+        subPieTab.setLayout(new BorderLayout());
+        JLabel label7 = new JLabel("Angle");
+        label7.setBorder(new EmptyBorder(0,10,0,20));
+        subPieTab.add(label7,BorderLayout.WEST);
+        subPieTab.add(angleList,BorderLayout.CENTER);
+        pieTab.add(subPieTab,BorderLayout.NORTH);
+
+        pieTab.add(new JScrollPane(pieChart),BorderLayout.CENTER);
+
+        tab.add("Pie Chart",pieTab);
+        JPanel lineTab = new JPanel();
+        lineTab.setLayout(new BorderLayout());
+        JPanel subLineTab = new JPanel();
+        subLineTab.setLayout(new BorderLayout());
+        JLabel label6 = new JLabel("Line");
+        label6.setBorder(new EmptyBorder(0,10,0,20));
+        subLineTab.add(label6,BorderLayout.WEST);
+        subLineTab.add(linelist,BorderLayout.CENTER);
+        lineTab.add(subLineTab,BorderLayout.NORTH);
+        lineTab.add(new JScrollPane(lineChart),BorderLayout.CENTER);
+        tab.add("Line Chart",lineTab);
+        pieChart.reset();
+        pieChart.addData(pieChart.createDataset(),"Blank");
+        lineChart.reset();
+        lineChart.addData(lineChart.createDataset(),"Blank");
+        tableReader.addLoadEvent(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dataViewer.setModel(new DefaultTableModel(tableReader.data,tableReader.header));
+            }
+        });
+
         container.add(tab);
         layout.putConstraint(WEST,tab,10,EAST,filterPane);
         layout.putConstraint(NORTH,tab,10,SOUTH,rowPane);
         layout.putConstraint(EAST,tab,-10,EAST,container);
         layout.putConstraint(SOUTH,tab,-10,SOUTH,container);
+
 
         //dimensionFilter.addException(tableReader.getHeader("Category"),"Technology");
         //measureFilter.addException(tableReader.getHeader("Profit"),0,new Range(0,Double.MAX_VALUE));
@@ -834,9 +900,12 @@ public class Main {
                     chart.addData(dat,key.toString(),false);
                 }
             } else {
+
                 DefaultCategoryDataset dat = new DefaultCategoryDataset();
                 showNumber(rowWidth,colHeight,dat,null,false);
                 chart.addData(dat,"BarChart",false);
+
+
             }
         } else if (mode == 1) {
             if (rowWidth > 1) {
@@ -848,9 +917,12 @@ public class Main {
                     chart.addData(dat,key.toString(),true);
                 }
             } else {
+
                 DefaultCategoryDataset dat = new DefaultCategoryDataset();
                 showNumber(rowWidth,colHeight,dat,null,false);
                 chart.addData(dat,"BarChart",true);
+
+
             }
             /*
             DefaultCategoryDataset dat = new DefaultCategoryDataset();
@@ -859,11 +931,13 @@ public class Main {
 
              */
         } else {
+            /*
             DefaultCategoryDataset dat = new DefaultCategoryDataset();
             showNumber(rowWidth,colHeight,dat,null,false);
             chart.addData(dat,"BarChart",true);
-        }
 
+             */
+        }
         DefaultTableModel tab = new DefaultTableModel(data,new String[width]);
         table.setModel(tab);
         System.out.println("MODE:" + mode);
@@ -927,7 +1001,7 @@ public class Main {
     public String b(String[] in,int len) {
         StringBuilder out = new StringBuilder();
         for (int i = 0;i < len;i++) {
-            out.append(in[i] + "\t");
+            out.append(in[i] + " / ");
         }
         return out.toString();
     }
@@ -1022,7 +1096,15 @@ public class Main {
         return out.toArray(new String[out.size()]);
     }
     public int ro(HashMap root,int index,int offY,int indexY) {
-        for (Object key:root.keySet()) {
+        List<String> keylist = new ArrayList<>(root.keySet());
+        if (keylist.size() > 0) {
+            if (utilOperation.isNumeric(keylist.get(0))){
+                keylist.sort(Comparator.comparingDouble(Double::parseDouble));
+            } else {
+                Collections.sort(keylist);
+            }
+        }
+        for (Object key:keylist) {
             Object value = root.get(key);
             if (value instanceof HashMap) {
                 System.out.println(index + " > " + indexY);
@@ -1057,7 +1139,15 @@ public class Main {
         }
     }
     public int col(HashMap root,int index,int offX,int indexX) {
-        for (Object key:root.keySet()) {
+        List<String> keylist = new ArrayList<>(root.keySet());
+        if (keylist.size() > 0) {
+            if (utilOperation.isNumeric(keylist.get(0))){
+                keylist.sort(Comparator.comparingDouble(Double::parseDouble));
+            } else {
+                Collections.sort(keylist);
+            }
+        }
+        for (Object key:keylist) {
             Object value = root.get(key);
             if (value instanceof HashMap) {
                 System.out.println(index + " > " + indexX);

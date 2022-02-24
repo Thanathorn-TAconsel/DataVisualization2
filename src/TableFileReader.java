@@ -1,5 +1,7 @@
+import java.awt.event.ActionListener;
 import java.io.FileInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Scanner;
 
@@ -12,9 +14,12 @@ public class TableFileReader {
     TableFileReader(String filename) throws Exception {
         loadData(filename);
     }
-
+    ActionListener loadFileListener;
     TableFileReader(){
 
+    }
+    public void addLoadEvent(ActionListener loadFileListener) {
+        this.loadFileListener = loadFileListener;
     }
     public Object[][] splitDM(Linked[] input) {
         Object[][] output = new Object[3][];
@@ -233,27 +238,66 @@ public class TableFileReader {
         String readline;
         String[] data;
         readline = scan.nextLine();
-        header = stringSplit(readline);
-        for (int i = 0;i < header.length;i++ ) {
-            headerIndex.put(header[i],i);
-        }
+        String[] prepare = stringSplit(readline);
+
         while (scan.hasNextLine()) {
             readline = scan.nextLine();
             data = stringSplit(readline);
             output.add(data);
         }
         String[] dataArray = output.get(1);
-        isMeasure = new boolean[dataArray.length];
+        int fIndex = -1;
+        for (int i = 0;i < dataArray.length;i++) {
+            if (utilOperation.findIn('/',2,dataArray[i])) {
+                fIndex  = i;
+                break;
+            }
+        }
+        if (fIndex != -1) {
+            String[] toHeader = utilOperation.expandStringArray(prepare,prepare.length + 3);
+            toHeader[toHeader.length -3] = toHeader[fIndex] + " (Year)";
+            toHeader[toHeader.length -2] = toHeader[fIndex] + " (Month)";
+            toHeader[toHeader.length -1] = toHeader[fIndex] + " (Day)";
+            header = toHeader;
+        } else {
+            header= prepare;
+        }
+        for (int i = 0;i < header.length;i++ ) {
+            headerIndex.put(header[i],i);
+        }
+        isMeasure = new boolean[header.length];
         int i = 0;
         for (String datas: dataArray) {
-            isMeasure[i] = isNumeric(datas);
+            isMeasure[i] = utilOperation.isNumeric(datas);
             //System.out.println(isMeasure[i]);
             i++;
         }
         scan.close();
         fin.close();
+        String[][] outArray = new String[output.size()][header.length];
+        int x = 0;
+        for (String[] a:output) {
+            if (fIndex != -1) {
+                outArray[x] = utilOperation.expandStringArray(a,header.length);
+                String[] date = a[fIndex].split("/");
+                outArray[x][outArray[x].length - 3] = date[2];
+                outArray[x][outArray[x].length - 2] = date[1];
+                outArray[x][outArray[x].length - 1] = date[0];
+            } else {
+                outArray[x] = a;
+            }
+            System.out.println(Arrays.toString(outArray[x]));
+            x++;
+        }
+        /*
         String[][] strings = new String[output.size()][];
         this.data = output.toArray(strings);
+
+         */
+        this.data = outArray;
+        if (loadFileListener != null) {
+            loadFileListener.actionPerformed(null);
+        }
     }
 
     public static String[] stringSplit(String input) {
@@ -279,14 +323,6 @@ public class TableFileReader {
         return output.toArray(new String[0]);
     }
 
-    public static boolean isNumeric(String str) {
-        try {
-            Double.parseDouble(str);
-            return true;
-        } catch(NumberFormatException e){
-            return false;
-        }
-    }
 
     public static void main(String[] args) throws Exception {
         new TableFileReader("Superstore.csv");
